@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackstone/Cobblestone Farma Checklist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .checked-item {
+            text-decoration: line-through;
+            color: #9ca3af;
+        }
+        .note {
+            font-size: 0.8em;
+            color: #4f46e5;
+            margin-left: 0.5rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div id="app" class="max-w-4xl mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-10">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 border-b-4 border-indigo-500 pb-2">
+            ⚒️ Checklist pro Farmu (Mod Create)
+        </h1>
+        <p class="text-gray-600 mb-6">
+            Váš postup se **automaticky ukládá v tomto prohlížeči**. Můžete si odškrtávat hotové položky i potřebné suroviny.
+        </p>
+
+        <h2 class="text-2xl font-bold text-gray-800 mt-6 mb-3 border-b border-gray-300 pb-1">I. Hotové Položky (Bloky k instalaci)</h2>
+        <div id="checklistContainerFinished" class="space-y-3">
+            </div>
+
+        <h2 class="text-2xl font-bold text-gray-800 mt-8 mb-3 border-b border-gray-300 pb-1">II. Suroviny pro Crafting (Základní materiály)</h2>
+        <div id="checklistContainerRaw" class="space-y-3">
+            </div>
+        
+        <div class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">
+            <p>Stav uložen lokálně v prohlížeči (Local Storage).</p>
+        </div>
+    </div>
+
+    <script>
+        // --- Data a Lokální Ukládání ---
+        const STORAGE_KEY = 'mc_create_checklist_data';
+        
+        // I. Výchozí data pro Hotové Položky
+        const defaultFinishedItems = [
+            { id: 1, qty: 1, item: "Soul Soil", checked: false, type: "finished" },
+            { id: 2, qty: 3, item: "Framed Glass", checked: false, type: "finished" },
+            { id: 3, qty: 1, item: "Soul Fire", checked: false, type: "finished" },
+            { id: 4, qty: 19, item: "Framed Glass Trapdoor", checked: false, type: "finished" },
+            { id: 5, qty: 9, item: "Encased Chain Drive", checked: false, type: "finished" },
+            { id: 6, qty: 5, item: "Shaft", checked: false, type: "finished" },
+            { id: 7, qty: 7, item: "Item Vault", checked: false, type: "finished" },
+            { id: 8, qty: 6, item: "Belt", checked: false, type: "finished" },
+            { id: 9, qty: 2, item: "Stockpile Switch", checked: false, type: "finished" },
+            { id: 10, qty: 2, item: "Redstone Link", checked: false, type: "finished" },
+            { id: 11, qty: 1, item: "Depot", checked: false, type: "finished" },
+            { id: 12, qty: 1, item: "Oak Wall Sign", checked: false, type: "finished" },
+            { id: 13, qty: 2, item: "Gearbox", checked: false, type: "finished" },
+            { id: 14, qty: 2, item: "Brass Belt Funnel", checked: false, type: "finished" },
+            { id: 15, qty: 1, item: "Andesite Belt Funnel", checked: false, type: "finished" },
+            { id: 16, qty: 1, item: "Encased Fan", checked: false, type: "finished" },
+            { id: 17, qty: 1, item: "Clutch", checked: false, type: "finished" },
+            { id: 18, qty: 3, item: "Chute", checked: false, type: "finished" },
+            { id: 19, qty: 3, item: "Mechanical Drill", checked: false, type: "finished" },
+            { id: 20, qty: 1, item: "Cobblestone", checked: false, type: "finished" },
+        ];
+
+        // II. Výchozí data pro Suroviny pro Crafting
+        const defaultRawMaterials = [
+            { id: 21, qty: 31, item: "Andesite Alloy", checked: false, type: "raw", note: "Základní Create materiál" },
+            { id: 22, qty: 63, item: "Železný Ingot", checked: false, type: "raw" },
+            { id: 23, qty: 14, item: "Železný Nugget", checked: false, type: "raw" },
+            { id: 24, qty: 9, item: "Kůže", checked: false, type: "raw", note: "Na výrobu pásů (Belt)" },
+            { id: 25, qty: 7, item: "Chest", checked: false, type: "raw", note: "Na výrobu trezorů (Item Vault)" },
+            { id: 26, qty: 2, item: "Brass Ingot", checked: false, type: "raw" },
+            { id: 27, qty: 4, item: "Polished Diorite", checked: false, type: "raw" },
+            { id: 28, qty: 3, item: "Redstone Dust", checked: false, type: "raw" },
+            { id: 29, qty: 3, item: "Wool", checked: false, type: "raw", note: "Na trychtýře (Funnel)" },
+            { id: 30, qty: 8, item: "Glass Block", checked: false, type: "raw", note: "Na Framed Glass" },
+            { id: 31, qty: 11, item: "Wood Planks", checked: false, type: "raw", note: "Různé použití" },
+            { id: 32, qty: 1, item: "Stick", checked: false, type: "raw", note: "Na ceduli (Sign)" },
+            { id: 33, qty: 1, item: "Flint and Steel", checked: false, type: "raw", note: "Na zapálení Soul Fire" },
+        ];
+        
+        let finishedItemsData = []; 
+        let rawMaterialsData = [];
+        
+
+        /** Načte stav z localStorage nebo použije výchozí data. */
+        function loadChecklistFromLocal() {
+            try {
+                const savedData = localStorage.getItem(STORAGE_KEY);
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    
+                    // Aplikace uložených stavů na výchozí data
+                    finishedItemsData = mergeData(defaultFinishedItems, parsedData.finishedItems);
+                    rawMaterialsData = mergeData(defaultRawMaterials, parsedData.rawMaterials);
+                } else {
+                    finishedItemsData = JSON.parse(JSON.stringify(defaultFinishedItems));
+                    rawMaterialsData = JSON.parse(JSON.stringify(defaultRawMaterials));
+                }
+            } catch (error) {
+                console.error("Chyba při načítání Local Storage:", error);
+                finishedItemsData = JSON.parse(JSON.stringify(defaultFinishedItems));
+                rawMaterialsData = JSON.parse(JSON.stringify(defaultRawMaterials));
+            }
+        }
+        
+        /** Pomocná funkce pro sloučení výchozích dat s uloženým stavem. */
+        function mergeData(defaultData, savedStatuses) {
+            const merged = JSON.parse(JSON.stringify(defaultData));
+            if (savedStatuses) {
+                savedStatuses.forEach(savedItem => {
+                    const defaultItem = merged.find(d => d.id === savedItem.id);
+                    if (defaultItem) {
+                        defaultItem.checked = savedItem.checked;
+                    }
+                });
+            }
+            return merged;
+        }
+
+        /** Ukládá aktuální stavy obou checklistů do localStorage. */
+        function saveChecklistToLocal() {
+            const dataToSave = {
+                finishedItems: finishedItemsData.map(item => ({ id: item.id, checked: item.checked })),
+                rawMaterials: rawMaterialsData.map(item => ({ id: item.id, checked: item.checked })),
+                updatedAt: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+        }
+
+        /** Renderuje checklist do DOMu. */
+        function renderChecklist(data, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            container.innerHTML = ''; // Vyčistíme kontejner
+
+            data.forEach(item => {
+                const isChecked = item.checked;
+                const listItem = document.createElement('div');
+                listItem.className = `flex items-center p-3 border rounded-lg transition-all ${isChecked ? 'bg-indigo-50 border-indigo-200' : 'bg-white hover:bg-gray-50 border-gray-200'}`;
+                listItem.innerHTML = `
+                    <input type="checkbox" id="item-${item.id}" data-id="${item.id}" data-type="${item.type}" ${isChecked ? 'checked' : ''}
+                           class="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer">
+                    <label for="item-${item.id}" class="ml-4 flex-1 text-lg font-medium cursor-pointer flex justify-between items-center ${isChecked ? 'checked-item' : 'text-gray-800'}">
+                        <span>
+                            <span class="font-bold text-indigo-600 mr-2">${item.qty} X</span> ${item.item}
+                            ${item.note ? `<span class="note">(${item.note})</span>` : ''}
+                        </span>
+                    </label>
+                `;
+
+                const checkbox = listItem.querySelector('input[type="checkbox"]');
+                if (checkbox) {
+                    checkbox.addEventListener('change', (e) => toggleItem(e.target.dataset.id, e.target.dataset.type, e.target.checked));
+                }
+
+                container.appendChild(listItem);
+            });
+        }
+
+        /** Přepíná stav zaškrtnutí položky a spouští uložení. */
+        function toggleItem(itemId, itemType, newCheckedState) {
+            const id = parseInt(itemId);
+            let targetArray = itemType === 'finished' ? finishedItemsData : rawMaterialsData;
+            let containerId = itemType === 'finished' ? 'checklistContainerFinished' : 'checklistContainerRaw';
+            
+            const itemIndex = targetArray.findIndex(item => item.id === id);
+
+            if (itemIndex > -1) {
+                targetArray[itemIndex].checked = newCheckedState;
+                renderChecklist(targetArray, containerId); 
+                saveChecklistToLocal();
+            }
+        }
+        
+        /** Inicializace při načtení stránky */
+        window.onload = () => {
+            loadChecklistFromLocal();
+            renderChecklist(finishedItemsData, 'checklistContainerFinished');
+            renderChecklist(rawMaterialsData, 'checklistContainerRaw');
+            
+            // Odstranění loading indikátoru, který už není potřeba
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loadingIndicator) {
+                 loadingIndicator.remove();
+            }
+        };
+    </script>
+</body>
+</html>
